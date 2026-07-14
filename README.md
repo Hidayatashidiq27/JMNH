@@ -40,35 +40,33 @@ API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakuk
 
 ---
 
-## Deploy ke Cloudflare (lewat Workers)
+## Deploy ke Vercel (disarankan)
 
-Cloudflare kini mengarahkan pembuatan aplikasi baru ke **Workers** (Workers sudah bisa host situs statis + fungsi sekaligus). Proyek ini sudah disiapkan untuk itu (lihat `wrangler.jsonc` dan folder `worker/`).
+> **Kenapa Vercel, bukan Cloudflare?** Gemini API gratis memblokir permintaan dari
+> sebagian lokasi pusat data. Cloudflare Workers (plan gratis) sering ditempatkan di
+> lokasi yang diblokir sehingga muncul error *"User location is not supported"*.
+> Fungsi server Vercel berjalan di region AS yang didukung Gemini, jadi lebih andal.
 
-### Cara A — Connect ke GitHub (deploy otomatis tiap push)
-
-1. Buka [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create**.
-2. Pilih **Import a repository** (hubungkan akun GitHub Anda), lalu pilih repo **`JMNH`** dan branch yang diinginkan.
-3. Isi pengaturan build:
-   - **Build command:** `npm run build`
-   - **Deploy command:** `npx wrangler deploy`
-4. Selesaikan pembuatan, lalu buka **Settings → Variables and Secrets** pada Worker tersebut dan tambahkan:
-   - **Type:** Secret
+1. Buat akun di [vercel.com](https://vercel.com) (bisa login pakai GitHub).
+2. Klik **Add New… → Project**, lalu **Import** repo **`JMNH`** dari GitHub.
+3. Vercel otomatis mendeteksi **Vite**. Biarkan pengaturan default:
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. Buka **Settings → Environment Variables**, tambahkan:
    - **Name:** `GEMINI_API_KEY`
    - **Value:** API key Gemini Anda
-5. Trigger ulang deploy (Retry deployment) agar secret terpakai. Setiap `git push` berikutnya akan build & deploy otomatis.
+5. Klik **Deploy**. Fungsi di folder `api/` otomatis aktif sebagai `/api/scan`.
 
-### Cara B — Deploy langsung dari komputer (CLI)
+Setiap `git push` berikutnya akan build & deploy ulang otomatis.
 
-1. Login sekali: `npx wrangler login`
-2. Simpan API key sebagai secret:
-   ```bash
-   npx wrangler secret put GEMINI_API_KEY
-   ```
-   (tempel API key saat diminta)
-3. Build dan deploy:
-   ```bash
-   npm run build
-   npm run deploy
-   ```
+---
 
-Setelah deploy, buka URL `*.workers.dev` yang diberikan Cloudflare.
+## (Alternatif) Deploy ke Cloudflare Workers
+
+Proyek ini juga siap untuk Cloudflare (`wrangler.jsonc` + folder `worker/`), **tetapi**
+fitur scan AI kemungkinan gagal karena pembatasan lokasi Gemini di atas. Gunakan hanya
+jika Anda punya cara mem-bypass batasan region tersebut.
+
+1. Login: `npx wrangler login`
+2. Simpan secret: `npx wrangler secret put GEMINI_API_KEY`
+3. Build & deploy: `npm run build && npm run deploy`

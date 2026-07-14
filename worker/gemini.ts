@@ -1,5 +1,6 @@
-// Logika pemanggilan Gemini di SISI SERVER (dipakai bersama oleh Cloudflare Worker
-// dan Cloudflare Pages Function). GEMINI_API_KEY tidak pernah dikirim ke browser.
+// Logika pemanggilan Gemini di SISI SERVER (dipakai bersama oleh Vercel Function,
+// Cloudflare Worker, dan Cloudflare Pages Function). GEMINI_API_KEY tidak pernah
+// dikirim ke browser.
 
 const MODEL = "gemini-3-flash-preview";
 
@@ -47,33 +48,28 @@ const RESPONSE_SCHEMA = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const json = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+export interface ScanInput {
+  image?: string;
+  mimeType?: string;
+  apiKey?: string;
+}
 
-// Menerima Request (berisi { image, mimeType }) dan env berisi GEMINI_API_KEY.
-export const runScan = async (request: Request, env: any): Promise<Response> => {
-  const apiKey = env?.GEMINI_API_KEY;
+export interface ScanOutput {
+  status: number;
+  body: any;
+}
+
+// Inti logika, tanpa ketergantungan platform. Mengembalikan { status, body }.
+export const scanImage = async ({ image, mimeType, apiKey }: ScanInput): Promise<ScanOutput> => {
   if (!apiKey) {
-    return json({ error: "GEMINI_API_KEY belum diset di environment Cloudflare." }, 500);
+    return { status: 500, body: { error: "GEMINI_API_KEY belum diset di environment server." } };
   }
-
-  let payload: { image?: string; mimeType?: string };
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ error: "Body permintaan tidak valid." }, 400);
-  }
-
-  const { image, mimeType } = payload;
   if (!image) {
-    return json({ error: "Data gambar tidak ditemukan." }, 400);
+    return { status: 400, body: { error: "Data gambar tidak ditemukan." } };
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
-  const body = {
+  const requestBody = {
     contents: [
       {
         parts: [
@@ -97,41 +93,68 @@ export const runScan = async (request: Request, env: any): Promise<Response> => 
       res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(requestBody),
       });
     } catch (e: any) {
-      // Kegagalan jaringan saat memanggil Gemini.
-      return json(
-        { error: "Gagal menghubungi server AI.", detail: String(e?.message || e).slice(0, 300) },
-        502,
-      );
+      return {
+        status: 502,
+        body: { error: "Gagal menghubungi server AI.", detail: String(e?.message || e).slice(0, 300) },
+      };
     }
 
     if (res.ok) {
       const data: any = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-      return new Response(text, { headers: { "Content-Type": "application/json" } });
+      let parsed: any;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = {};
+      }
+      return { status: 200, body: parsed };
     }
 
     lastStatus = res.status;
     const retryable = res.status === 503 || res.status === 429 || res.status === 500;
     if (!retryable || attempt === maxRetries) {
       const errText = await res.text().catch(() => "");
-      return json(
-        {
+      return {
+        status: res.status === 503 || res.status === 429 ? res.status : res.status >= 500 ? 502 : res.status,
+        body: {
           error:
             res.status === 503 || res.status === 429
               ? "Server AI sedang sibuk. Silakan coba lagi beberapa saat lagi."
               : `Gagal memproses gambar di server AI (kode ${res.status}).`,
           detail: errText.slice(0, 500),
         },
-        // Kembalikan 502 untuk error upstream 5xx agar tidak tertukar dengan
-        // 500 milik server kita sendiri (mis. konfigurasi/secret).
-        res.status >= 500 ? 502 : res.status,
-      );
+      };
     }
     await sleep(1000 * Math.pow(2, attempt)); // 1s, 2s, 4s
   }
 
-  return json({ error: "Server AI sedang sibuk. Silakan coba lagi." }, lastStatus);
+  return { status: lastStatus, body: { error: "Server AI sedang sibuk. Silakan coba lagi." } };
+};
+
+// Pembungkus untuk platform berbasis Web Request/Response (Cloudflare).
+export const runScan = async (request: Request, env: any): Promise<Response> => {
+  let payload: ScanInput = {};
+  try {
+    payload = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Body permintaan tidak valid." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { status, body } = await scanImage({
+    image: payload.image,
+    mimeType: payload.mimeType,
+    apiKey: env?.GEMINI_API_KEY,
+  });
+
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 };
