@@ -69,7 +69,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) =
         reader.readAsDataURL(file);
       });
 
-      const result = await scanReceipt(base64);
+      const result = await scanReceipt(base64, file.type || 'image/jpeg');
 
       if (result && result.transactions && result.transactions.length > 0) {
         const formatted = result.transactions.map((tr: any) => {
