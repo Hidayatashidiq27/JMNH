@@ -1,0 +1,8 @@
+{
+  "name": "Sistem Informasi Kas Masjid Nurul Huda",
+  "description": "Aplikasi manajemen keuangan masjid modern dengan integrasi AI untuk ekstraksi data kuitansi otomatis.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}
