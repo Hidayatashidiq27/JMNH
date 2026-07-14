@@ -2,11 +2,11 @@
 
 Aplikasi web untuk mencatat kas masjid, lengkap dengan fitur **pindai laporan (scan) otomatis menggunakan AI (Gemini)**.
 
-Dibangun dengan React + TypeScript + Vite, dan di-deploy ke **Cloudflare Pages**.
+Dibangun dengan React + TypeScript + Vite, dan di-deploy ke **Cloudflare Workers** (situs statis + fungsi server).
 
 ## Keamanan API Key
 
-API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakukan di sisi server lewat Cloudflare Function (`functions/api/scan.ts`), dan key disimpan sebagai variabel rahasia (`GEMINI_API_KEY`). Frontend hanya memanggil endpoint sendiri di `/api/scan`.
+API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakukan di sisi server (`worker/gemini.ts`), dan key disimpan sebagai variabel rahasia (`GEMINI_API_KEY`). Frontend hanya memanggil endpoint sendiri di `/api/scan`.
 
 ---
 
@@ -18,14 +18,14 @@ API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakuk
    ```bash
    npm install
    ```
-2. Jalankan aplikasi (tampilan UI):
+2. Jalankan aplikasi (tampilan UI saja):
    ```bash
    npm run dev
    ```
 
-> Catatan: `npm run dev` hanya menjalankan frontend. Fitur **scan AI** membutuhkan Cloudflare Function, jadi untuk mengujinya secara lokal lihat bagian di bawah.
+> Catatan: `npm run dev` hanya menjalankan frontend. Fitur **scan AI** butuh server, jadi untuk mengujinya secara lokal lihat bagian di bawah.
 
-### Menguji fitur scan AI secara lokal (dengan Cloudflare Function)
+### Menguji fitur scan AI secara lokal
 
 1. Salin `.dev.vars.example` menjadi `.dev.vars`, lalu isi API key Anda:
    ```
@@ -34,25 +34,41 @@ API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakuk
    (File `.dev.vars` tidak ikut ter-commit — aman.)
 2. Build lalu jalankan lewat wrangler:
    ```bash
-   npm run build
-   npx wrangler pages dev dist
+   npm run cf:dev
    ```
-3. Buka URL yang ditampilkan wrangler (biasanya `http://localhost:8788`).
+3. Buka URL yang ditampilkan wrangler (biasanya `http://localhost:8787`).
 
 ---
 
-## Deploy ke Cloudflare Pages
+## Deploy ke Cloudflare (lewat Workers)
 
-1. Buka [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
-2. Pilih repository GitHub ini (`JMNH`) dan branch yang ingin di-deploy.
+Cloudflare kini mengarahkan pembuatan aplikasi baru ke **Workers** (Workers sudah bisa host situs statis + fungsi sekaligus). Proyek ini sudah disiapkan untuk itu (lihat `wrangler.jsonc` dan folder `worker/`).
+
+### Cara A — Connect ke GitHub (deploy otomatis tiap push)
+
+1. Buka [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create**.
+2. Pilih **Import a repository** (hubungkan akun GitHub Anda), lalu pilih repo **`JMNH`** dan branch yang diinginkan.
 3. Isi pengaturan build:
-   - **Framework preset:** `Vite`
    - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-4. Buka **Settings → Environment variables**, tambahkan variabel rahasia:
+   - **Deploy command:** `npx wrangler deploy`
+4. Selesaikan pembuatan, lalu buka **Settings → Variables and Secrets** pada Worker tersebut dan tambahkan:
+   - **Type:** Secret
    - **Name:** `GEMINI_API_KEY`
    - **Value:** API key Gemini Anda
-   - (Simpan sebagai *Secret* / encrypted.)
-5. Klik **Save and Deploy**.
+5. Trigger ulang deploy (Retry deployment) agar secret terpakai. Setiap `git push` berikutnya akan build & deploy otomatis.
 
-Cloudflare otomatis mendeteksi folder `functions/` dan mengaktifkan endpoint `/api/scan`. Setiap kali Anda `git push`, Cloudflare akan build & deploy ulang secara otomatis.
+### Cara B — Deploy langsung dari komputer (CLI)
+
+1. Login sekali: `npx wrangler login`
+2. Simpan API key sebagai secret:
+   ```bash
+   npx wrangler secret put GEMINI_API_KEY
+   ```
+   (tempel API key saat diminta)
+3. Build dan deploy:
+   ```bash
+   npm run build
+   npm run deploy
+   ```
+
+Setelah deploy, buka URL `*.workers.dev` yang diberikan Cloudflare.

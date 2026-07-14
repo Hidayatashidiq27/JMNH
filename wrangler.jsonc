@@ -1,0 +1,13 @@
+{
+  // Konfigurasi Cloudflare Worker (situs statis + endpoint /api/scan).
+  "name": "jmnh",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+  // Catatan: GEMINI_API_KEY diset sebagai "Secret" di dashboard Cloudflare
+  // (Settings -> Variables and Secrets), JANGAN ditulis di file ini.
+}
