@@ -94,11 +94,17 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) =
       }
     } catch (err: any) {
       const code = err?.status ?? err?.error?.code ?? err?.code;
+      let text: string;
       if (code === 503 || code === 429) {
-        setStatusMsg({ text: 'Server AI sedang sibuk. Silakan coba lagi beberapa saat lagi.', type: 'error' });
+        text = 'Server AI sedang sibuk. Silakan coba lagi beberapa saat lagi.';
+      } else if (err?.message && err.message !== 'Failed to fetch') {
+        // Tampilkan pesan asli dari server agar mudah didiagnosis.
+        text = err.message;
       } else {
-        setStatusMsg({ text: 'Gagal memproses foto. Pastikan list laporan kas (masuk/keluar) terlihat jelas.', type: 'error' });
+        text = 'Gagal memproses foto. Pastikan list laporan kas (masuk/keluar) terlihat jelas.';
       }
+      console.error('Scan gagal:', err);
+      setStatusMsg({ text, type: 'error' });
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

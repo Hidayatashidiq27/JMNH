@@ -12,10 +12,12 @@ export const scanReceipt = async (
   });
 
   if (!response.ok) {
-    let message = "Gagal memindai gambar.";
+    let message = `Gagal memindai gambar (kode ${response.status}).`;
     try {
       const errData = await response.json();
+      console.error("Detail error dari server /api/scan:", errData);
       if (errData?.error) message = errData.error;
+      if (errData?.detail) message += ` (${String(errData.detail).slice(0, 200)})`;
     } catch {
       // abaikan jika body bukan JSON
     }
