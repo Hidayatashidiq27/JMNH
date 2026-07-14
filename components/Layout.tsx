@@ -6,9 +6,10 @@ interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isAdmin?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isAdmin = false }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5 md:w-6 md:h-6" /> },
     { id: 'transactions', label: 'Kas & Transaksi', icon: <Wallet className="w-5 h-5 md:w-6 md:h-6" /> },
@@ -23,8 +24,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           Nurul Huda
         </h1>
         <div className="flex items-center gap-2 text-xs text-emerald-200">
-           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-           Admin
+           <span className={`w-2 h-2 rounded-full animate-pulse ${isAdmin ? 'bg-emerald-400' : 'bg-amber-300'}`}></span>
+           {isAdmin ? 'Admin' : 'Publik'}
         </div>
       </div>
 
@@ -69,8 +70,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         <header className="hidden md:flex bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-40 justify-between items-center">
           <h2 className="text-xl font-semibold text-slate-800 capitalize">{activeTab.replace('-', ' ')}</h2>
           <div className="flex items-center gap-2 text-sm text-slate-500">
-             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-             Admin Online
+             <span className={`w-2 h-2 rounded-full animate-pulse ${isAdmin ? 'bg-emerald-500' : 'bg-amber-400'}`}></span>
+             {isAdmin ? 'Mode Admin' : 'Tampilan Publik'}
           </div>
         </header>
 

@@ -1,4 +1,13 @@
 # Contoh variabel rahasia untuk pengembangan lokal dengan Cloudflare (wrangler).
-# Salin file ini menjadi ".dev.vars" lalu isi dengan API key asli Anda.
+# Salin file ini menjadi ".dev.vars" lalu isi dengan nilai asli Anda.
 # File ".dev.vars" TIDAK ikut ter-commit (sudah diabaikan di .gitignore).
+
+# API key Gemini (untuk fitur scan struk)
 GEMINI_API_KEY=isi_dengan_api_key_gemini_anda
+
+# Koneksi Supabase (untuk penyimpanan data kas)
+SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=isi_dengan_service_role_key_supabase
+
+# Password untuk login admin (tambah/edit/hapus transaksi)
+ADMIN_PASSWORD=adminjmnh

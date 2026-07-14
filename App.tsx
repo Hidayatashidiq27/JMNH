@@ -2,84 +2,95 @@
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FileText, Download, LogOut } from 'lucide-react';
+import { FileText, Download, LogOut, LogIn, Loader2, AlertCircle } from 'lucide-react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import LoginForm from './components/LoginForm';
 import { Transaction } from './types';
-import { INITIAL_TRANSACTIONS } from './constants';
+import * as dataService from './services/dataService';
 
 const App: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return sessionStorage.getItem('is_admin_logged_in') === 'true';
-  });
-  
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => sessionStorage.getItem('is_admin') === 'true');
+  const [showLogin, setShowLogin] = useState(false);
+
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('masjid_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await dataService.getTransactions();
+      setTransactions(data);
+      setLoadError(null);
+    } catch (err) {
+      console.error('Gagal memuat data:', err);
+      setLoadError('Gagal memuat data dari server. Pastikan Supabase sudah dikonfigurasi.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('masjid_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    loadData();
+  }, []);
 
-  const handleLogin = (user: string, pass: string) => {
-    if (user === 'admin' && pass === 'adminjmnh') {
-      setIsLoggedIn(true);
-      sessionStorage.setItem('is_admin_logged_in', 'true');
+  const handleLogin = async (_user: string, pass: string) => {
+    const ok = await dataService.login(pass);
+    if (ok) {
+      sessionStorage.setItem('is_admin', 'true');
+      sessionStorage.setItem('admin_pass', pass);
+      setIsAdmin(true);
+      setShowLogin(false);
       return true;
     }
     return false;
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    sessionStorage.removeItem('is_admin_logged_in');
+    sessionStorage.removeItem('is_admin');
+    sessionStorage.removeItem('admin_pass');
+    setIsAdmin(false);
   };
 
-  const handleAddTransaction = (newTr: Omit<Transaction, 'id'>) => {
-    const transaction: Transaction = {
-      ...newTr,
-      id: `tr-${Date.now()}`
-    };
-    setTransactions(prev => [...prev, transaction]);
+  const handleAddTransaction = async (newTr: Omit<Transaction, 'id'>) => {
+    const created = await dataService.addTransaction(newTr);
+    setTransactions(prev => [...prev, created]);
   };
 
-  const handleBulkAdd = (newTransactions: Omit<Transaction, 'id'>[]) => {
-    const timestamp = Date.now();
-    const prepared = newTransactions.map((tr, index) => ({
-      ...tr,
-      id: `tr-bulk-${timestamp}-${index}`
-    }));
-    setTransactions(prev => [...prev, ...prepared]);
+  const handleBulkAdd = async (newTransactions: Omit<Transaction, 'id'>[]) => {
+    const created = await dataService.addTransactions(newTransactions);
+    setTransactions(prev => [...prev, ...created]);
   };
 
-  const handleUpdateTransaction = (updatedTr: Transaction) => {
-    setTransactions(prev => prev.map(t => t.id === updatedTr.id ? updatedTr : t));
+  const handleUpdateTransaction = async (updatedTr: Transaction) => {
+    const saved = await dataService.updateTransaction(updatedTr);
+    setTransactions(prev => prev.map(t => (t.id === saved.id ? saved : t)));
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    setTransactions(prevTransactions => prevTransactions.filter(t => t.id !== id));
+  const handleDeleteTransaction = async (id: string) => {
+    await dataService.deleteTransaction(id);
+    setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
   const handleExportCSV = () => {
     const headers = ['ID', 'Tanggal', 'Kegiatan', 'Tipe', 'Nominal', 'Kategori'];
     const rows = transactions.map(t => [
-      t.id, 
-      t.date, 
-      t.activity.replace(/,/g, ''), 
-      t.type, 
-      t.amount, 
+      t.id,
+      t.date,
+      t.activity.replace(/,/g, ''),
+      t.type,
+      t.amount,
       t.category
     ]);
-    
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n" 
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + headers.join(",") + "\n"
       + rows.map(e => e.join(",")).join("\n");
-      
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -91,12 +102,12 @@ const App: React.FC = () => {
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
-    
+
     // Header
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('Laporan Kas Keuangan Masjid Nurul Huda', 105, 20, { align: 'center' });
-    
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Tercetak pada: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`, 105, 28, { align: 'center' });
@@ -116,7 +127,7 @@ const App: React.FC = () => {
 
     // Table
     const tableColumn = ["No", "Tanggal", "Keterangan", "Masuk (Rp)", "Keluar (Rp)"];
-    
+
     const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const tableRows = sortedTransactions.map((t, index) => [
@@ -128,8 +139,8 @@ const App: React.FC = () => {
     ]);
 
     tableRows.push([
-      '', '', 'TOTAL KESELURUHAN', 
-      formatIDR(totalIn).replace('Rp', '').trim(), 
+      '', '', 'TOTAL KESELURUHAN',
+      formatIDR(totalIn).replace('Rp', '').trim(),
       formatIDR(totalOut).replace('Rp', '').trim()
     ]);
 
@@ -149,7 +160,7 @@ const App: React.FC = () => {
     });
 
     const finalY = (doc as any).lastAutoTable.finalY || 150;
-    
+
     // Signatures
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -168,51 +179,85 @@ const App: React.FC = () => {
     doc.save(`Laporan_Kas_Nurul_Huda_${new Date().getTime()}.pdf`);
   };
 
-  if (!isLoggedIn) {
-    return <LoginForm onLogin={handleLogin} />;
+  // Layar login admin (hanya tampil saat tombol Login ditekan).
+  if (showLogin && !isAdmin) {
+    return <LoginForm onLogin={handleLogin} onCancel={() => setShowLogin(false)} />;
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+    <Layout activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin}>
       <div className="flex justify-end mb-4">
-        <button 
-          onClick={handleLogout}
-          className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors border border-red-100 flex items-center gap-1.5 font-medium"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Logout Admin
-        </button>
+        {isAdmin ? (
+          <button
+            onClick={handleLogout}
+            className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors border border-red-100 flex items-center gap-1.5 font-medium"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Logout Admin
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowLogin(true)}
+            className="text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-100 flex items-center gap-1.5 font-medium"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Login Admin
+          </button>
+        )}
       </div>
 
-      {activeTab === 'dashboard' && (
-        <Dashboard transactions={transactions} />
-      )}
-      
-      {activeTab === 'transactions' && (
-        <div className="space-y-4">
-          <div className="flex justify-end gap-2">
-             <button 
-               onClick={handleExportPDF}
-               className="text-[10px] md:text-xs bg-red-50 text-red-700 px-3 py-2 rounded-lg hover:bg-red-100 transition-all border border-red-200 font-bold flex items-center gap-1.5 md:gap-2"
-             >
-               <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
-               Download PDF
-             </button>
-             <button 
-               onClick={handleExportCSV}
-               className="text-[10px] md:text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-200 font-bold flex items-center gap-1.5 md:gap-2"
-             >
-               <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-               Download CSV
-             </button>
-          </div>
-          <TransactionForm onAdd={handleAddTransaction} onBulkAdd={handleBulkAdd} />
-          <TransactionList 
-            transactions={transactions} 
-            onDelete={handleDeleteTransaction} 
-            onUpdate={handleUpdateTransaction}
-          />
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+          <Loader2 className="w-8 h-8 animate-spin mb-3" />
+          <p className="text-sm">Memuat data...</p>
         </div>
+      ) : loadError ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
+          <p className="text-sm text-slate-600 max-w-md">{loadError}</p>
+          <button
+            onClick={loadData}
+            className="mt-4 text-xs bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'dashboard' && (
+            <Dashboard transactions={transactions} />
+          )}
+
+          {activeTab === 'transactions' && (
+            <div className="space-y-4">
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  className="text-[10px] md:text-xs bg-red-50 text-red-700 px-3 py-2 rounded-lg hover:bg-red-100 transition-all border border-red-200 font-bold flex items-center gap-1.5 md:gap-2"
+                >
+                  <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Download PDF
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="text-[10px] md:text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-200 font-bold flex items-center gap-1.5 md:gap-2"
+                >
+                  <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Download CSV
+                </button>
+              </div>
+              {isAdmin && (
+                <TransactionForm onAdd={handleAddTransaction} onBulkAdd={handleBulkAdd} />
+              )}
+              <TransactionList
+                transactions={transactions}
+                onDelete={handleDeleteTransaction}
+                onUpdate={handleUpdateTransaction}
+                isAdmin={isAdmin}
+              />
+            </div>
+          )}
+        </>
       )}
     </Layout>
   );

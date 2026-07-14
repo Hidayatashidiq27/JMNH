@@ -8,6 +8,36 @@ Dibangun dengan React + TypeScript + Vite, dan di-deploy ke **Cloudflare Workers
 
 API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakukan di sisi server (`worker/gemini.ts`), dan key disimpan sebagai variabel rahasia (`GEMINI_API_KEY`). Frontend hanya memanggil endpoint sendiri di `/api/scan`.
 
+## Penyimpanan Data (Supabase)
+
+Data transaksi kas disimpan di **Supabase** (Postgres), bukan lagi di browser.
+
+- **Baca** (`GET /api/transactions`) → terbuka untuk publik (semua orang bisa melihat laporan).
+- **Tulis** (tambah/edit/hapus) → hanya admin, divalidasi password di server (`/api/transactions`, `/api/login`).
+- Worker mengakses Supabase memakai **Service Role Key** yang disimpan sebagai secret — tidak pernah sampai ke browser.
+
+### Setup Supabase (sekali saja)
+
+1. Buat akun & project baru di [supabase.com](https://supabase.com) (gratis).
+2. Buka **SQL Editor → New query**, tempel isi file [`supabase/schema.sql`](supabase/schema.sql), lalu **Run** untuk membuat tabel `transactions`.
+3. Ambil kredensial di **Project Settings → API**:
+   - **Project URL** → untuk `SUPABASE_URL`
+   - **service_role key** (bagian *Project API keys*, klik *Reveal*) → untuk `SUPABASE_SERVICE_ROLE_KEY`
+     > ⚠️ service_role bersifat rahasia. Jangan pernah ditaruh di kode frontend.
+
+### Secret yang harus diset di Cloudflare Worker
+
+Buka Worker Anda → **Settings → Variables and Secrets**, tambahkan sebagai **Secret**:
+
+| Name | Isi |
+|------|-----|
+| `GEMINI_API_KEY` | API key Gemini |
+| `SUPABASE_URL` | Project URL Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | service_role key Supabase |
+| `ADMIN_PASSWORD` | Password login admin (mis. `adminjmnh`) |
+
+Setelah menambah secret, jalankan **Retry deployment**.
+
 ---
 
 ## Menjalankan di Komputer Lokal

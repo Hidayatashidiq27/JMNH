@@ -1,18 +1,29 @@
 // Entry point Cloudflare Worker.
-// - Permintaan ke /api/scan ditangani di server (aman, key tidak ke browser).
-// - Permintaan lain disajikan sebagai aset statis (hasil build Vite di ./dist).
+// - /api/scan         : scan struk pakai Gemini (server-side)
+// - /api/login        : validasi password admin
+// - /api/transactions : CRUD data kas (baca publik, tulis khusus admin)
+// - lainnya           : sajikan aset statis (SPA React dari ./dist)
 
 import { runScan } from "./gemini";
+import { handleLogin, handleTransactions } from "./data";
 
 export default {
   async fetch(request: Request, env: any): Promise<Response> {
     const url = new URL(request.url);
+    const path = url.pathname;
 
-    if (url.pathname === "/api/scan") {
-      if (request.method !== "POST") {
-        return new Response("Method Not Allowed", { status: 405 });
-      }
+    if (path === "/api/scan") {
+      if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
       return runScan(request, env);
+    }
+
+    if (path === "/api/login") {
+      if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+      return handleLogin(request, env);
+    }
+
+    if (path === "/api/transactions") {
+      return handleTransactions(request, env, url);
     }
 
     // Selain /api, sajikan file statis (SPA React).

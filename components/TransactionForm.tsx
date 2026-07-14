@@ -5,8 +5,8 @@ import { scanReceipt } from '../services/geminiService';
 import { PenSquare, Camera, Sparkles, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 interface TransactionFormProps {
-  onAdd: (transaction: Omit<Transaction, 'id'>) => void;
-  onBulkAdd: (transactions: Omit<Transaction, 'id'>[]) => void;
+  onAdd: (transaction: Omit<Transaction, 'id'>) => void | Promise<void>;
+  onBulkAdd: (transactions: Omit<Transaction, 'id'>[]) => void | Promise<void>;
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) => {
@@ -26,28 +26,35 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) =
   const formatIDR = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.activity || !formData.amount) return;
-    
-    onAdd({
-      date: formData.date,
-      activity: formData.activity,
-      amount: parseFloat(formData.amount),
-      type: formData.type,
-      category: formData.category
-    });
 
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      activity: '',
-      amount: '',
-      type: 'IN',
-      category: 'Umum'
-    });
-    
-    setStatusMsg({ text: 'Data manual berhasil disimpan', type: 'success' });
-    setTimeout(() => setStatusMsg(null), 3000);
+    setLoading(true);
+    try {
+      await onAdd({
+        date: formData.date,
+        activity: formData.activity,
+        amount: parseFloat(formData.amount),
+        type: formData.type,
+        category: formData.category
+      });
+
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        activity: '',
+        amount: '',
+        type: 'IN',
+        category: 'Umum'
+      });
+
+      setStatusMsg({ text: 'Data manual berhasil disimpan', type: 'success' });
+      setTimeout(() => setStatusMsg(null), 3000);
+    } catch (err: any) {
+      setStatusMsg({ text: err?.message || 'Gagal menyimpan data.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,12 +136,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) =
     setPreviewData(newData);
   };
 
-  const handleSavePreview = () => {
+  const handleSavePreview = async () => {
     if (!previewData) return;
-    onBulkAdd(previewData);
-    setPreviewData(null);
-    setStatusMsg({ text: 'Semua data hasil scan berhasil disimpan!', type: 'success' });
-    setTimeout(() => setStatusMsg(null), 3000);
+    setLoading(true);
+    try {
+      await onBulkAdd(previewData);
+      setPreviewData(null);
+      setStatusMsg({ text: 'Semua data hasil scan berhasil disimpan!', type: 'success' });
+      setTimeout(() => setStatusMsg(null), 3000);
+    } catch (err: any) {
+      setStatusMsg({ text: err?.message || 'Gagal menyimpan data hasil scan.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

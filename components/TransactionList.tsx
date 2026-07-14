@@ -5,19 +5,27 @@ import { Inbox, Check, X, Pencil, Trash2 } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
-  onDelete: (id: string) => void;
-  onUpdate: (transaction: Transaction) => void;
+  onDelete: (id: string) => void | Promise<void>;
+  onUpdate: (transaction: Transaction) => void | Promise<void>;
+  isAdmin?: boolean;
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelete, onUpdate }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelete, onUpdate, isAdmin = false }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<Transaction>>({});
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const itemsPerPage = 10;
 
-  const formatIDR = (val: number) => 
+  const formatIDR = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
+  const showError = (msg: string) => {
+    setActionError(msg);
+    setTimeout(() => setActionError(null), 4000);
+  };
 
   const startEdit = (t: Transaction) => {
     setEditingId(t.id);
@@ -29,11 +37,30 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
     setEditValues({});
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (editingId && editValues.activity && editValues.date && editValues.amount !== undefined) {
-      onUpdate(editValues as Transaction);
-      setEditingId(null);
-      setEditValues({});
+      setBusy(true);
+      try {
+        await onUpdate(editValues as Transaction);
+        setEditingId(null);
+        setEditValues({});
+      } catch (err: any) {
+        showError(err?.message || 'Gagal menyimpan perubahan.');
+      } finally {
+        setBusy(false);
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setBusy(true);
+    try {
+      await onDelete(id);
+      setConfirmDeleteId(null);
+    } catch (err: any) {
+      showError(err?.message || 'Gagal menghapus data.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -60,6 +87,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
         <h4 className="font-semibold text-slate-800 text-sm md:text-base">Riwayat Transaksi</h4>
         <div className="text-[10px] md:text-xs text-slate-400">Total {transactions.length} baris</div>
       </div>
+      {actionError && (
+        <div className="px-4 py-2 bg-red-50 text-red-600 text-xs md:text-sm border-b border-red-100">
+          {actionError}
+        </div>
+      )}
       <div className="overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -68,13 +100,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
               <th className="px-2 md:px-6 py-3 font-medium">Kegiatan</th>
               <th className="px-2 md:px-6 py-3 font-medium hidden sm:table-cell">Kategori</th>
               <th className="px-2 md:px-6 py-3 font-medium text-right">Nominal</th>
-              <th className="px-2 md:px-6 py-3 font-medium text-center">Aksi</th>
+              {isAdmin && <th className="px-2 md:px-6 py-3 font-medium text-center">Aksi</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {currentTransactions.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={isAdmin ? 5 : 4} className="px-6 py-12 text-center text-slate-400">
                   <div className="flex justify-center mb-2">
                     <Inbox className="w-10 h-10 text-slate-300" />
                   </div>
@@ -141,6 +173,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
                         </div>
                       )}
                     </td>
+                    {isAdmin && (
                     <td className="px-1 md:px-6 py-3 text-center align-top md:align-middle">
                       <div className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-3">
                         {isEditing ? (
@@ -176,8 +209,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
                               <div className="flex flex-col gap-1 items-center bg-red-50 p-1 rounded-lg">
                                 <button
                                   type="button"
-                                  onClick={() => onDelete(t.id)}
-                                  className="px-1 md:px-2 py-0.5 md:py-1 bg-red-500 text-white text-[8px] md:text-[10px] rounded hover:bg-red-600 font-bold whitespace-nowrap"
+                                  disabled={busy}
+                                  onClick={() => handleDelete(t.id)}
+                                  className="px-1 md:px-2 py-0.5 md:py-1 bg-red-500 text-white text-[8px] md:text-[10px] rounded hover:bg-red-600 font-bold whitespace-nowrap disabled:opacity-50"
                                 >
                                   Hapus?
                                 </button>
@@ -207,6 +241,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onDelet
                         )}
                       </div>
                     </td>
+                    )}
                   </tr>
                 );
               })

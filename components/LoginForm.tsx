@@ -1,22 +1,33 @@
 
 import React, { useState } from 'react';
-import { MoonStar } from 'lucide-react';
+import { MoonStar, ArrowLeft, Loader2 } from 'lucide-react';
 
 interface LoginFormProps {
-  onLogin: (user: string, pass: string) => boolean;
+  onLogin: (user: string, pass: string) => Promise<boolean> | boolean;
+  onCancel?: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = onLogin(username, password);
-    if (!success) {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const success = await onLogin(username, password);
+      if (!success) {
+        setError(true);
+        setTimeout(() => setError(false), 3000);
+      }
+    } catch {
       setError(true);
       setTimeout(() => setError(false), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,12 +77,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-emerald-100 transition-all active:scale-95"
+            disabled={loading}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-emerald-100 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            Masuk ke Sistem
+            {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Memproses...</> : 'Masuk ke Sistem'}
           </button>
+
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full py-2 text-slate-500 hover:text-emerald-700 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Kembali ke tampilan publik
+            </button>
+          )}
         </form>
 
         <div className="p-6 text-center border-t border-slate-100">
