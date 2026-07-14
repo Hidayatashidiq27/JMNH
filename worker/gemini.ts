@@ -92,11 +92,20 @@ export const runScan = async (request: Request, env: any): Promise<Response> => 
   const maxRetries = 3;
   let lastStatus = 502;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (e: any) {
+      // Kegagalan jaringan saat memanggil Gemini.
+      return json(
+        { error: "Gagal menghubungi server AI.", detail: String(e?.message || e).slice(0, 300) },
+        502,
+      );
+    }
 
     if (res.ok) {
       const data: any = await res.json();
@@ -113,10 +122,12 @@ export const runScan = async (request: Request, env: any): Promise<Response> => 
           error:
             res.status === 503 || res.status === 429
               ? "Server AI sedang sibuk. Silakan coba lagi beberapa saat lagi."
-              : "Gagal memproses gambar di server AI.",
+              : `Gagal memproses gambar di server AI (kode ${res.status}).`,
           detail: errText.slice(0, 500),
         },
-        res.status,
+        // Kembalikan 502 untuk error upstream 5xx agar tidak tertukar dengan
+        // 500 milik server kita sendiri (mis. konfigurasi/secret).
+        res.status >= 500 ? 502 : res.status,
       );
     }
     await sleep(1000 * Math.pow(2, attempt)); // 1s, 2s, 4s
