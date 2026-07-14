@@ -3,9 +3,30 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Coba ulang otomatis saat model sedang sibuk (503) atau kena rate limit (429).
+const generateWithRetry = async (params: any, maxRetries = 3) => {
+  let lastError: any;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error: any) {
+      lastError = error;
+      const code = error?.status ?? error?.error?.code ?? error?.code;
+      const isRetryable = code === 503 || code === 429 || code === 500;
+      if (!isRetryable || attempt === maxRetries) throw error;
+      const delay = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+      console.warn(`Gemini sibuk (${code}). Mencoba lagi dalam ${delay / 1000}s... (percobaan ${attempt + 1}/${maxRetries})`);
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+};
+
 export const scanReceipt = async (base64Image: string) => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry({
       model: "gemini-3-flash-preview",
       contents: {
         parts: [

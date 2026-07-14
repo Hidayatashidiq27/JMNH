@@ -58,38 +58,47 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) =
     setStatusMsg({ text: 'AI sedang menganalisis baris masuk dan keluar...', type: 'info' });
     
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result?.toString().split(',')[1];
-        if (base64) {
-          const result = await scanReceipt(base64);
-          
-          if (result && result.transactions && result.transactions.length > 0) {
-            const formatted = result.transactions.map((tr: any) => {
-              const detectedType = tr.type === 'IN' || tr.type === 'Pemasukan' || tr.type === 'Masuk' ? 'IN' : 
-                                   (tr.type === 'OUT' || tr.type === 'Pengeluaran' || tr.type === 'Keluar' ? 'OUT' : 'OUT');
-              return {
-                date: tr.date || new Date().toISOString().split('T')[0],
-                activity: tr.activity,
-                amount: tr.amount || 0,
-                type: detectedType as TransactionType,
-                category: 'Auto-Scan AI'
-              };
-            });
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const data = event.target?.result?.toString().split(',')[1];
+          if (data) resolve(data);
+          else reject(new Error('Gagal membaca isi file gambar.'));
+        };
+        reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+        reader.readAsDataURL(file);
+      });
 
-            setPreviewData(formatted);
-            setStatusMsg({ 
-              text: `Berhasil membaca ${formatted.length} baris. Silahkan periksa dan edit di bawah sebelum menyimpan.`, 
-              type: 'success' 
-            });
-          } else {
-            setStatusMsg({ text: 'AI tidak menemukan data transaksi yang valid pada gambar.', type: 'error' });
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      setStatusMsg({ text: 'Gagal memproses foto. Pastikan list laporan kas (masuk/keluar) terlihat jelas.', type: 'error' });
+      const result = await scanReceipt(base64);
+
+      if (result && result.transactions && result.transactions.length > 0) {
+        const formatted = result.transactions.map((tr: any) => {
+          const detectedType = tr.type === 'IN' || tr.type === 'Pemasukan' || tr.type === 'Masuk' ? 'IN' :
+                               (tr.type === 'OUT' || tr.type === 'Pengeluaran' || tr.type === 'Keluar' ? 'OUT' : 'OUT');
+          return {
+            date: tr.date || new Date().toISOString().split('T')[0],
+            activity: tr.activity,
+            amount: tr.amount || 0,
+            type: detectedType as TransactionType,
+            category: 'Auto-Scan AI'
+          };
+        });
+
+        setPreviewData(formatted);
+        setStatusMsg({
+          text: `Berhasil membaca ${formatted.length} baris. Silahkan periksa dan edit di bawah sebelum menyimpan.`,
+          type: 'success'
+        });
+      } else {
+        setStatusMsg({ text: 'AI tidak menemukan data transaksi yang valid pada gambar.', type: 'error' });
+      }
+    } catch (err: any) {
+      const code = err?.status ?? err?.error?.code ?? err?.code;
+      if (code === 503 || code === 429) {
+        setStatusMsg({ text: 'Server AI sedang sibuk. Silakan coba lagi beberapa saat lagi.', type: 'error' });
+      } else {
+        setStatusMsg({ text: 'Gagal memproses foto. Pastikan list laporan kas (masuk/keluar) terlihat jelas.', type: 'error' });
+      }
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
