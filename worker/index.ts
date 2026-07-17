@@ -12,6 +12,15 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // Cek versi/kesehatan deploy. Jika endpoint ini mengembalikan JSON,
+    // berarti kode terbaru (dengan Supabase) sudah aktif.
+    if (path === "/api/health") {
+      return new Response(
+        JSON.stringify({ ok: true, version: "supabase-1", features: ["scan", "login", "transactions"] }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     if (path === "/api/scan") {
       if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
       return runScan(request, env);
