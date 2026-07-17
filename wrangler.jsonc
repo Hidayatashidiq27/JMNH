@@ -3,6 +3,10 @@
   "name": "jmnh",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-01",
+  // Smart Placement: jalankan Worker dekat server tujuan (Google/Gemini di AS),
+  // supaya panggilan Gemini keluar dari lokasi yang didukung (menghindari error
+  // "User location is not supported").
+  "placement": { "mode": "smart" },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
