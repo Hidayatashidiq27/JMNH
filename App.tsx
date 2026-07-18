@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
+import ReceiptGallery from './components/ReceiptGallery';
 import LoginForm from './components/LoginForm';
 import { Transaction } from './types';
 import * as dataService from './services/dataService';
@@ -54,6 +55,7 @@ const App: React.FC = () => {
     sessionStorage.removeItem('is_admin');
     sessionStorage.removeItem('admin_pass');
     setIsAdmin(false);
+    setActiveTab('dashboard');
   };
 
   const handleAddTransaction = async (newTr: Omit<Transaction, 'id'>) => {
@@ -256,6 +258,10 @@ const App: React.FC = () => {
                 isAdmin={isAdmin}
               />
             </div>
+          )}
+
+          {activeTab === 'receipts' && isAdmin && (
+            <ReceiptGallery />
           )}
         </>
       )}

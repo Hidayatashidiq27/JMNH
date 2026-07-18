@@ -75,3 +75,32 @@ export const deleteTransaction = async (id: string): Promise<void> => {
   });
   if (!res.ok) throw await toError(res);
 };
+
+// ---- Bukti foto (receipts) — khusus admin ----
+
+export interface Receipt {
+  id: string;
+  uploaded_at: string;
+  mime_type: string;
+}
+
+export const getReceipts = async (): Promise<Receipt[]> => {
+  const res = await fetch("/api/receipts", { headers: authHeaders() });
+  if (!res.ok) throw await toError(res);
+  return res.json();
+};
+
+export const getReceiptImageUrl = async (id: string): Promise<string> => {
+  const res = await fetch(`/api/receipts/image?id=${encodeURIComponent(id)}`, { headers: authHeaders() });
+  if (!res.ok) throw await toError(res);
+  const data = await res.json();
+  return data.url as string;
+};
+
+export const deleteReceipt = async (id: string): Promise<void> => {
+  const res = await fetch(`/api/receipts?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw await toError(res);
+};

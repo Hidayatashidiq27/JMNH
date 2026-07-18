@@ -27,3 +27,20 @@ insert into public.transactions (date, activity, amount, type, category) values
   ('2024-05-12', 'Bayar Listrik Mei',      850000, 'OUT', 'Operasional'),
   ('2024-05-15', 'Sodakoh Pembangunan',   5000000, 'IN',  'Pembangunan'),
   ('2024-05-18', 'Servis AC Masjid',       450000, 'OUT', 'Pemeliharaan');
+
+-- =====================================================================
+-- Bukti foto struk (opsional, untuk fitur galeri gambar khusus admin)
+-- =====================================================================
+create table if not exists public.receipts (
+  id           uuid primary key default gen_random_uuid(),
+  storage_path text not null,
+  mime_type    text not null default 'image/jpeg',
+  uploaded_at  timestamptz not null default now()
+);
+
+alter table public.receipts enable row level security;
+
+-- Bucket penyimpanan gambar, PRIVAT supaya publik tidak bisa mengakses.
+insert into storage.buckets (id, name, public)
+values ('receipts', 'receipts', false)
+on conflict (id) do nothing;

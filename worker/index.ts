@@ -4,8 +4,8 @@
 // - /api/transactions : CRUD data kas (baca publik, tulis khusus admin)
 // - lainnya           : sajikan aset statis (SPA React dari ./dist)
 
-import { runScan } from "./gemini";
 import { handleLogin, handleTransactions } from "./data";
+import { handleScan, handleReceipts, handleReceiptImage } from "./receipts";
 
 export default {
   async fetch(request: Request, env: any): Promise<Response> {
@@ -16,14 +16,14 @@ export default {
     // berarti kode terbaru (dengan Supabase) sudah aktif.
     if (path === "/api/health") {
       return new Response(
-        JSON.stringify({ ok: true, version: "supabase-1", features: ["scan", "login", "transactions"] }),
+        JSON.stringify({ ok: true, version: "receipts-1", features: ["scan", "login", "transactions", "receipts"] }),
         { headers: { "Content-Type": "application/json" } },
       );
     }
 
     if (path === "/api/scan") {
       if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
-      return runScan(request, env);
+      return handleScan(request, env);
     }
 
     if (path === "/api/login") {
@@ -33,6 +33,14 @@ export default {
 
     if (path === "/api/transactions") {
       return handleTransactions(request, env, url);
+    }
+
+    if (path === "/api/receipts/image") {
+      return handleReceiptImage(request, env, url);
+    }
+
+    if (path === "/api/receipts") {
+      return handleReceipts(request, env, url);
     }
 
     // Selain /api, sajikan file statis (SPA React).

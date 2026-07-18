@@ -1,18 +1,18 @@
 // Lapisan data: menghubungkan Worker ke Supabase (REST/PostgREST).
 // SERVICE ROLE KEY hanya ada di server (secret Cloudflare), tidak pernah ke browser.
 
-const jsonResp = (data: unknown, status = 200): Response =>
+export const jsonResp = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
-const sbHeaders = (env: any) => ({
+export const sbHeaders = (env: any) => ({
   apikey: env.SUPABASE_SERVICE_ROLE_KEY,
   Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
   "Content-Type": "application/json",
 });
 
-const sbUrl = (env: any, path: string) => `${env.SUPABASE_URL}/rest/v1/${path}`;
+export const sbUrl = (env: any, path: string) => `${env.SUPABASE_URL}/rest/v1/${path}`;
 
-const isAdmin = (request: Request, env: any): boolean => {
+export const isAdmin = (request: Request, env: any): boolean => {
   const pass = request.headers.get("x-admin-password") || "";
   return Boolean(env.ADMIN_PASSWORD) && pass === env.ADMIN_PASSWORD;
 };

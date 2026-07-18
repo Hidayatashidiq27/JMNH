@@ -7,7 +7,10 @@ export const scanReceipt = async (
 ) => {
   const response = await fetch("/api/scan", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-password": sessionStorage.getItem("admin_pass") || "",
+    },
     body: JSON.stringify({ image: base64Image, mimeType }),
   });
 
