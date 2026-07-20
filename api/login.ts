@@ -1,7 +1,7 @@
 // POST /api/login — validasi password admin (Vercel).
-import { serverEnv, readBody } from '../lib/supabase';
+import { serverEnv, readBody, withErrors } from '../lib/supabase';
 
-export default function handler(req: any, res: any) {
+export default withErrors((req: any, res: any) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method Not Allowed' });
     return;
@@ -13,4 +13,4 @@ export default function handler(req: any, res: any) {
     return;
   }
   res.status(401).json({ error: 'Password admin salah.' });
-}
+});

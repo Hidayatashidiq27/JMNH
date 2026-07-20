@@ -8,6 +8,18 @@ export const serverEnv = () => ({
   geminiKey: process.env.GEMINI_API_KEY || '',
 });
 
+// Bungkus handler agar error runtime tampil sebagai JSON (bukan crash 500).
+export const withErrors = (handler: (req: any, res: any) => any) => async (req: any, res: any) => {
+  try {
+    await handler(req, res);
+  } catch (e: any) {
+    res.status(500).json({
+      error: 'Terjadi kesalahan di server.',
+      detail: String(e?.message || e).slice(0, 300),
+    });
+  }
+};
+
 export const sbHeaders = (key: string) => ({
   apikey: key,
   Authorization: `Bearer ${key}`,

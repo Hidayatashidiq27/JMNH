@@ -1,9 +1,17 @@
-// GET /api/health — penanda versi/kesehatan (Vercel).
-export default function handler(_req: any, res: any) {
+// GET /api/health — penanda versi + cek environment variable (tanpa bocorkan nilai).
+import { serverEnv, withErrors } from '../lib/supabase';
+
+export default withErrors((_req: any, res: any) => {
+  const { url, key, adminPassword, geminiKey } = serverEnv();
   res.status(200).json({
     ok: true,
     platform: 'vercel',
-    version: 'vercel-1',
-    features: ['scan', 'login', 'transactions', 'receipts', 'monthly-filter', 'pwa'],
+    version: 'vercel-2',
+    env: {
+      SUPABASE_URL: Boolean(url),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(key),
+      ADMIN_PASSWORD: Boolean(adminPassword),
+      GEMINI_API_KEY: Boolean(geminiKey),
+    },
   });
-}
+});

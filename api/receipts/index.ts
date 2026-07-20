@@ -1,7 +1,7 @@
 // /api/receipts — GET daftar (admin), DELETE (admin). Vercel.
-import { serverEnv, sbHeaders, storageHeaders, isAdmin, queryId } from '../../lib/supabase';
+import { serverEnv, sbHeaders, storageHeaders, isAdmin, queryId, withErrors } from '../../lib/supabase';
 
-export default async function handler(req: any, res: any) {
+export default withErrors(async (req: any, res: any) => {
   if (!isAdmin(req)) {
     res.status(401).json({ error: 'Akses ditolak. Login admin diperlukan.' });
     return;
@@ -48,4 +48,4 @@ export default async function handler(req: any, res: any) {
   }
 
   res.status(405).json({ error: 'Method tidak didukung.' });
-}
+});

@@ -1,7 +1,7 @@
 // GET /api/receipts/image?id=... — signed URL sementara (admin). Vercel.
-import { serverEnv, sbHeaders, storageHeaders, isAdmin, queryId } from '../../lib/supabase';
+import { serverEnv, sbHeaders, storageHeaders, isAdmin, queryId, withErrors } from '../../lib/supabase';
 
-export default async function handler(req: any, res: any) {
+export default withErrors(async (req: any, res: any) => {
   if (!isAdmin(req)) {
     res.status(401).json({ error: 'Akses ditolak. Login admin diperlukan.' });
     return;
@@ -33,4 +33,4 @@ export default async function handler(req: any, res: any) {
   }
   const data = await signRes.json();
   res.status(200).json({ url: `${url}/storage/v1${data.signedURL}` });
-}
+});

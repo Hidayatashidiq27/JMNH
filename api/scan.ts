@@ -2,7 +2,7 @@
 // Berjalan di region AS Vercel (didukung Gemini), jadi tidak kena batasan lokasi.
 import { randomUUID } from 'node:crypto';
 import { scanImage } from '../worker/gemini';
-import { serverEnv, isAdmin, readBody, sbHeaders, storageHeaders } from '../lib/supabase';
+import { serverEnv, isAdmin, readBody, sbHeaders, storageHeaders, withErrors } from '../lib/supabase';
 
 async function saveReceipt(url: string, key: string, image: string, mimeType: string) {
   const ext = (mimeType || '').includes('png') ? 'png' : 'jpg';
@@ -21,7 +21,7 @@ async function saveReceipt(url: string, key: string, image: string, mimeType: st
   });
 }
 
-export default async function handler(req: any, res: any) {
+export default withErrors(async (req: any, res: any) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method Not Allowed' });
     return;
@@ -45,4 +45,4 @@ export default async function handler(req: any, res: any) {
   }
 
   res.status(result.status).json(result.body);
-}
+});

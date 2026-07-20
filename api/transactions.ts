@@ -1,7 +1,7 @@
 // /api/transactions — GET (publik), POST/PUT/DELETE (admin). Vercel.
-import { serverEnv, sbHeaders, isAdmin, readBody, queryId, mapRow, sanitize } from '../lib/supabase';
+import { serverEnv, sbHeaders, isAdmin, readBody, queryId, mapRow, sanitize, withErrors } from '../lib/supabase';
 
-export default async function handler(req: any, res: any) {
+export default withErrors(async (req: any, res: any) => {
   const { url, key } = serverEnv();
   if (!url || !key) {
     res.status(500).json({ error: 'Supabase belum dikonfigurasi di server (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).' });
@@ -76,4 +76,4 @@ export default async function handler(req: any, res: any) {
   }
 
   res.status(405).json({ error: 'Method tidak didukung.' });
-}
+});
