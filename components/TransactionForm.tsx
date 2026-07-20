@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Transaction, TransactionType } from '../types';
 import { scanReceipt } from '../services/geminiService';
+import { fileToScaledJpegBase64 } from '../services/image';
 import { PenSquare, Camera, Sparkles, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 interface TransactionFormProps {
@@ -65,18 +66,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAdd, onBulkAdd }) =
     setStatusMsg({ text: 'AI sedang menganalisis baris masuk dan keluar...', type: 'info' });
     
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const data = event.target?.result?.toString().split(',')[1];
-          if (data) resolve(data);
-          else reject(new Error('Gagal membaca isi file gambar.'));
-        };
-        reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
-        reader.readAsDataURL(file);
-      });
+      // Perkecil & kompres gambar dulu (hemat kuota, cepat, di bawah batas ukuran).
+      const base64 = await fileToScaledJpegBase64(file);
 
-      const result = await scanReceipt(base64, file.type || 'image/jpeg');
+      const result = await scanReceipt(base64, 'image/jpeg');
 
       if (result && result.transactions && result.transactions.length > 0) {
         const formatted = result.transactions.map((tr: any) => {

@@ -2,11 +2,27 @@
 
 Aplikasi web untuk mencatat kas masjid, lengkap dengan fitur **pindai laporan (scan) otomatis menggunakan AI (Gemini)**.
 
-Dibangun dengan React + TypeScript + Vite, dan di-deploy ke **Cloudflare Workers** (situs statis + fungsi server).
+Dibangun dengan React + TypeScript + Vite. **Direkomendasikan deploy ke Vercel** (fungsi server berjalan di region AS yang didukung Gemini). Kode juga masih kompatibel dengan Cloudflare Workers (`worker/`).
+
+## Deploy ke Vercel (disarankan)
+
+Cloudflare Workers gratis kadang ditempatkan di lokasi yang diblokir Gemini
+(*"User location is not supported"*). Fungsi Vercel berjalan di region AS, jadi
+fitur scan stabil. Endpoint ada di folder `api/`.
+
+1. Buka [vercel.com](https://vercel.com) → login pakai GitHub.
+2. **Add New → Project** → **Import** repo ini → pilih branch yang benar.
+3. Framework otomatis terdeteksi **Vite** (Build: `npm run build`, Output: `dist`).
+4. **Settings → Environment Variables**, tambahkan:
+   - `GEMINI_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `ADMIN_PASSWORD`
+5. **Deploy**. Setiap `git push` akan build & deploy otomatis.
 
 ## Keamanan API Key
 
-API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakukan di sisi server (`worker/gemini.ts`), dan key disimpan sebagai variabel rahasia (`GEMINI_API_KEY`). Frontend hanya memanggil endpoint sendiri di `/api/scan`.
+API key Gemini **tidak pernah dikirim ke browser**. Semua pemanggilan AI dilakukan di sisi server (`worker/gemini.ts`, dipakai fungsi `api/scan.ts`), dan key disimpan sebagai variabel rahasia (`GEMINI_API_KEY`). Frontend hanya memanggil endpoint sendiri di `/api/scan`.
 
 ## Penyimpanan Data (Supabase)
 
