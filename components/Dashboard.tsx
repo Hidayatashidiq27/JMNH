@@ -8,18 +8,21 @@ import { FileDown, DownloadCloud, UploadCloud, Wallet, Sparkles, Bell, FileText,
 
 interface DashboardProps {
   transactions: Transaction[];
+  openingBalance?: number;
+  periodLabel?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
+const Dashboard: React.FC<DashboardProps> = ({ transactions, openingBalance, periodLabel }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 10;
+
+  const isPeriod = openingBalance !== undefined;
 
   const totalIn = transactions.filter(t => t.type === 'IN').reduce((sum, t) => sum + t.amount, 0);
   const totalOut = transactions.filter(t => t.type === 'OUT').reduce((sum, t) => sum + t.amount, 0);
   const balance = totalIn - totalOut;
+  const closingBalance = (openingBalance || 0) + totalIn - totalOut;
 
   // Chart data: Group by date
   const chartData = transactions.reduce((acc: any[], t) => {
@@ -47,19 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
 
   // Filter and Sort Transactions
   const filteredAndSortedTransactions = transactions
-    .filter(t => {
-      let matches = true;
-      if (startDate) {
-        matches = matches && new Date(t.date) >= new Date(startDate);
-      }
-      if (endDate) {
-        matches = matches && new Date(t.date) <= new Date(endDate);
-      }
-      if (searchTerm) {
-        matches = matches && t.activity.toLowerCase().includes(searchTerm.toLowerCase());
-      }
-      return matches;
-    })
+    .filter(t => (searchTerm ? t.activity.toLowerCase().includes(searchTerm.toLowerCase()) : true))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const totalPages = Math.ceil(filteredAndSortedTransactions.length / itemsPerPage);
@@ -86,11 +77,23 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Tercetak pada: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`, 105, 28, { align: 'center' });
 
+    let y = 40;
     doc.setFontSize(11);
-    doc.text(`Total Pemasukan: ${formatIDR(totalIn)}`, 14, 40);
-    doc.text(`Total Pengeluaran: ${formatIDR(totalOut)}`, 14, 46);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Saldo Akhir: ${formatIDR(balance)}`, 14, 52);
+    if (isPeriod) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Periode: ${periodLabel || ''}`, 14, y); y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Saldo Awal: ${formatIDR(openingBalance || 0)}`, 14, y); y += 6;
+      doc.text(`Pemasukan: ${formatIDR(totalIn)}`, 14, y); y += 6;
+      doc.text(`Pengeluaran: ${formatIDR(totalOut)}`, 14, y); y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Saldo Akhir: ${formatIDR(closingBalance)}`, 14, y); y += 8;
+    } else {
+      doc.text(`Total Pemasukan: ${formatIDR(totalIn)}`, 14, y); y += 6;
+      doc.text(`Total Pengeluaran: ${formatIDR(totalOut)}`, 14, y); y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Saldo Akhir: ${formatIDR(balance)}`, 14, y); y += 8;
+    }
 
     // Table
     const tableColumn = ["No", "Tanggal", "Keterangan", "Masuk (Rp)", "Keluar (Rp)"];
@@ -116,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 60,
+      startY: y,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [5, 150, 105] }, // emerald-600
       didParseCell: function(data) {
@@ -151,29 +154,53 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-emerald-600">
-             <DownloadCloud className="w-16 h-16" strokeWidth={1} />
+      {isPeriod ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
+          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200">
+            <p className="text-slate-500 text-xs md:text-sm font-medium">Saldo Awal</p>
+            <h3 className="text-lg md:text-2xl font-bold text-slate-700 mt-2">{formatIDR(openingBalance || 0)}</h3>
           </div>
-          <p className="text-slate-500 text-sm font-medium">Total Pemasukan</p>
-          <h3 className="text-2xl font-bold text-emerald-600 mt-2">{formatIDR(totalIn)}</h3>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 relative overflow-hidden">
-           <div className="absolute top-0 right-0 p-4 opacity-10 text-red-600">
-             <UploadCloud className="w-16 h-16" strokeWidth={1} />
-           </div>
-          <p className="text-slate-500 text-sm font-medium">Total Pengeluaran</p>
-          <h3 className="text-2xl font-bold text-red-600 mt-2">{formatIDR(totalOut)}</h3>
-        </div>
-        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-20">
-             <Wallet className="w-16 h-16" strokeWidth={1.5} />
+          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-emerald-100">
+            <p className="text-slate-500 text-xs md:text-sm font-medium">Pemasukan</p>
+            <h3 className="text-lg md:text-2xl font-bold text-emerald-600 mt-2">{formatIDR(totalIn)}</h3>
           </div>
-          <p className="text-emerald-100 text-sm font-medium">Saldo Kas Saat Ini</p>
-          <h3 className="text-3xl font-bold mt-2">{formatIDR(balance)}</h3>
+          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-red-100">
+            <p className="text-slate-500 text-xs md:text-sm font-medium">Pengeluaran</p>
+            <h3 className="text-lg md:text-2xl font-bold text-red-600 mt-2">{formatIDR(totalOut)}</h3>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-4 md:p-5 rounded-2xl shadow-lg text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-3 opacity-20">
+              <Wallet className="w-12 h-12" strokeWidth={1.5} />
+            </div>
+            <p className="text-emerald-100 text-xs md:text-sm font-medium">Saldo Akhir</p>
+            <h3 className="text-lg md:text-2xl font-bold mt-2">{formatIDR(closingBalance)}</h3>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 text-emerald-600">
+              <DownloadCloud className="w-16 h-16" strokeWidth={1} />
+            </div>
+            <p className="text-slate-500 text-sm font-medium">Total Pemasukan</p>
+            <h3 className="text-2xl font-bold text-emerald-600 mt-2">{formatIDR(totalIn)}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 text-red-600">
+              <UploadCloud className="w-16 h-16" strokeWidth={1} />
+            </div>
+            <p className="text-slate-500 text-sm font-medium">Total Pengeluaran</p>
+            <h3 className="text-2xl font-bold text-red-600 mt-2">{formatIDR(totalOut)}</h3>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-20">
+              <Wallet className="w-16 h-16" strokeWidth={1.5} />
+            </div>
+            <p className="text-emerald-100 text-sm font-medium">Saldo Kas Saat Ini</p>
+            <h3 className="text-3xl font-bold mt-2">{formatIDR(balance)}</h3>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Main Flow Chart */}
@@ -261,28 +288,11 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
             </button>
           </div>
           
-          {/* Filters */}
-          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto text-sm">
-             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} 
-                  className="w-full min-w-0 border border-slate-200 rounded-lg px-2 md:px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-[10px] sm:text-sm" 
-                  title="Dari Tanggal"
-                />
-                <span className="text-slate-400 self-center hidden sm:inline">-</span>
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} 
-                  className="w-full min-w-0 border border-slate-200 rounded-lg px-2 md:px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-[10px] sm:text-sm" 
-                  title="Sampai Tanggal"
-                />
-             </div>
-             <input 
-               type="text" 
-               placeholder="Cari keterangan..." 
+          {/* Pencarian */}
+          <div className="w-full md:w-auto text-sm">
+             <input
+               type="text"
+               placeholder="Cari keterangan..."
                value={searchTerm}
                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                className="w-full md:w-64 border border-slate-200 rounded-lg px-2 md:px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-[10px] sm:text-sm"

@@ -16,7 +16,7 @@ export default {
     // berarti kode terbaru (dengan Supabase) sudah aktif.
     if (path === "/api/health") {
       return new Response(
-        JSON.stringify({ ok: true, version: "receipts-1", features: ["scan", "login", "transactions", "receipts"] }),
+        JSON.stringify({ ok: true, version: "monthly-pwa-1", features: ["scan", "login", "transactions", "receipts", "monthly-filter", "pwa"] }),
         { headers: { "Content-Type": "application/json" } },
       );
     }

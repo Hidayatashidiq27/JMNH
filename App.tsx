@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FileText, Download, LogOut, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Download, LogOut, LogIn, Loader2, AlertCircle, CalendarRange } from 'lucide-react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
@@ -20,6 +20,27 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Filter periode: 'all' atau 'YYYY-MM'
+  const [period, setPeriod] = useState<string>('all');
+
+  const periodTransactions = useMemo(() => {
+    if (period === 'all') return transactions;
+    return transactions.filter(t => (t.date || '').slice(0, 7) === period);
+  }, [transactions, period]);
+
+  // Saldo awal = net semua transaksi SEBELUM awal periode (hanya saat bulan dipilih).
+  const openingBalance = useMemo(() => {
+    if (period === 'all') return undefined;
+    const start = `${period}-01`;
+    return transactions
+      .filter(t => (t.date || '') < start)
+      .reduce((sum, t) => sum + (t.type === 'IN' ? t.amount : -t.amount), 0);
+  }, [transactions, period]);
+
+  const periodLabel = period === 'all'
+    ? 'Semua Waktu'
+    : new Date(`${period}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
   const loadData = async () => {
     setLoading(true);
@@ -80,7 +101,7 @@ const App: React.FC = () => {
 
   const handleExportCSV = () => {
     const headers = ['ID', 'Tanggal', 'Kegiatan', 'Tipe', 'Nominal', 'Kategori'];
-    const rows = transactions.map(t => [
+    const rows = periodTransactions.map(t => [
       t.id,
       t.date,
       t.activity.replace(/,/g, ''),
@@ -114,23 +135,35 @@ const App: React.FC = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Tercetak pada: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`, 105, 28, { align: 'center' });
 
-    // Summary
-    const totalIn = transactions.filter(t => t.type === 'IN').reduce((sum, t) => sum + t.amount, 0);
-    const totalOut = transactions.filter(t => t.type === 'OUT').reduce((sum, t) => sum + t.amount, 0);
+    // Summary (mengikuti periode terpilih)
+    const totalIn = periodTransactions.filter(t => t.type === 'IN').reduce((sum, t) => sum + t.amount, 0);
+    const totalOut = periodTransactions.filter(t => t.type === 'OUT').reduce((sum, t) => sum + t.amount, 0);
     const balance = totalIn - totalOut;
 
     const formatIDR = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
+    let y = 40;
     doc.setFontSize(11);
-    doc.text(`Total Pemasukan: ${formatIDR(totalIn)}`, 14, 40);
-    doc.text(`Total Pengeluaran: ${formatIDR(totalOut)}`, 14, 46);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Saldo Akhir: ${formatIDR(balance)}`, 14, 52);
+    if (openingBalance !== undefined) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Periode: ${periodLabel}`, 14, y); y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Saldo Awal: ${formatIDR(openingBalance)}`, 14, y); y += 6;
+      doc.text(`Pemasukan: ${formatIDR(totalIn)}`, 14, y); y += 6;
+      doc.text(`Pengeluaran: ${formatIDR(totalOut)}`, 14, y); y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Saldo Akhir: ${formatIDR(openingBalance + balance)}`, 14, y); y += 8;
+    } else {
+      doc.text(`Total Pemasukan: ${formatIDR(totalIn)}`, 14, y); y += 6;
+      doc.text(`Total Pengeluaran: ${formatIDR(totalOut)}`, 14, y); y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Saldo Akhir: ${formatIDR(balance)}`, 14, y); y += 8;
+    }
 
     // Table
     const tableColumn = ["No", "Tanggal", "Keterangan", "Masuk (Rp)", "Keluar (Rp)"];
 
-    const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedTransactions = [...periodTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const tableRows = sortedTransactions.map((t, index) => [
       index + 1,
@@ -149,7 +182,7 @@ const App: React.FC = () => {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 60,
+      startY: y,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [5, 150, 105] }, // emerald-600
       didParseCell: function(data) {
@@ -226,8 +259,39 @@ const App: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Pemilih periode (Bulan/Tahun) — untuk Dashboard & Transaksi */}
+          {(activeTab === 'dashboard' || activeTab === 'transactions') && (
+            <div className="mb-4 bg-white border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 text-slate-600 text-xs md:text-sm font-medium">
+                <CalendarRange className="w-4 h-4 text-emerald-600" />
+                Periode:
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="month"
+                  value={period === 'all' ? '' : period}
+                  onChange={(e) => setPeriod(e.target.value || 'all')}
+                  className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs md:text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <button
+                  onClick={() => setPeriod('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${
+                    period === 'all'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Semua Waktu
+                </button>
+                <span className="text-xs md:text-sm text-slate-500">
+                  Menampilkan: <span className="font-semibold text-slate-700">{periodLabel}</span>
+                </span>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'dashboard' && (
-            <Dashboard transactions={transactions} />
+            <Dashboard transactions={periodTransactions} openingBalance={openingBalance} periodLabel={periodLabel} />
           )}
 
           {activeTab === 'transactions' && (
@@ -252,7 +316,7 @@ const App: React.FC = () => {
                 <TransactionForm onAdd={handleAddTransaction} onBulkAdd={handleBulkAdd} />
               )}
               <TransactionList
-                transactions={transactions}
+                transactions={periodTransactions}
                 onDelete={handleDeleteTransaction}
                 onUpdate={handleUpdateTransaction}
                 isAdmin={isAdmin}
