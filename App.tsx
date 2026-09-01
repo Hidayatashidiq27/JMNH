@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
+import LaporanPapan from './components/LaporanPapan';
 import ReceiptGallery from './components/ReceiptGallery';
 import LoginForm from './components/LoginForm';
 import { Transaction } from './types';
@@ -259,8 +260,8 @@ const App: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Pemilih periode (Bulan/Tahun) — untuk Dashboard & Transaksi */}
-          {(activeTab === 'dashboard' || activeTab === 'transactions') && (
+          {/* Pemilih periode (Bulan/Tahun) — untuk Dashboard, Laporan & Transaksi */}
+          {(activeTab === 'dashboard' || activeTab === 'laporan' || activeTab === 'transactions') && (
             <div className="mb-4 bg-white border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 text-slate-600 text-xs md:text-sm font-medium">
                 <CalendarRange className="w-4 h-4 text-emerald-600" />
@@ -292,6 +293,10 @@ const App: React.FC = () => {
 
           {activeTab === 'dashboard' && (
             <Dashboard transactions={periodTransactions} openingBalance={openingBalance} periodLabel={periodLabel} />
+          )}
+
+          {activeTab === 'laporan' && (
+            <LaporanPapan transactions={periodTransactions} periodLabel={periodLabel} />
           )}
 
           {activeTab === 'transactions' && (

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Wallet, MoonStar, Image as ImageIcon } from 'lucide-react';
+import { LayoutDashboard, Wallet, MoonStar, Image as ImageIcon, ClipboardList } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isAdmin = false }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5 md:w-6 md:h-6" /> },
+    { id: 'laporan', label: 'Laporan', icon: <ClipboardList className="w-5 h-5 md:w-6 md:h-6" /> },
     { id: 'transactions', label: 'Kas & Transaksi', icon: <Wallet className="w-5 h-5 md:w-6 md:h-6" /> },
     ...(isAdmin
       ? [{ id: 'receipts', label: 'Bukti Foto', icon: <ImageIcon className="w-5 h-5 md:w-6 md:h-6" /> }]
