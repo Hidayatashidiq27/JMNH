@@ -304,38 +304,46 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, openingBalance, per
           <table className="w-full text-left">
             <thead>
               <tr className="text-slate-500 border-b border-slate-100 uppercase text-[10px] md:text-xs tracking-wider">
-                <th className="pb-3 font-semibold w-20 md:w-28">Tanggal</th>
+                <th className="pb-3 font-semibold w-16 md:w-28">Tanggal</th>
                 <th className="pb-3 font-semibold">Keterangan</th>
-                <th className="pb-3 font-semibold text-right">Nominal</th>
+                <th className="pb-3 font-semibold text-right">Pemasukan</th>
+                <th className="pb-3 font-semibold text-right">Pengeluaran</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {currentTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-3 text-slate-600 font-medium text-[10px] md:text-sm whitespace-nowrap">
+                  <td className="py-3 text-slate-600 font-medium text-[10px] md:text-sm whitespace-nowrap align-top md:align-middle">
                     {new Date(t.date).toLocaleDateString('id-ID', { year: '2-digit', month: '2-digit', day: '2-digit' })}
                   </td>
-                  <td className="py-3 text-slate-800 font-bold text-[10px] md:text-sm pr-2 leading-tight">
+                  <td className="py-3 text-slate-800 font-bold text-[10px] md:text-sm pr-2 leading-tight align-top md:align-middle">
                     <div className="line-clamp-2 md:truncate md:max-w-[200px]" title={t.activity}>
                       {t.activity}
                     </div>
                   </td>
-                  <td className="py-3 text-right text-[10px] md:text-sm whitespace-nowrap">
+                  <td className="py-3 text-right text-[10px] md:text-sm whitespace-nowrap align-top md:align-middle">
                     {t.type === 'IN' ? (
                       <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 md:px-2 py-1 rounded-lg">
-                        + {formatIDR(t.amount)}
+                        {formatIDR(t.amount)}
                       </span>
                     ) : (
+                      <span className="text-slate-300">-</span>
+                    )}
+                  </td>
+                  <td className="py-3 text-right text-[10px] md:text-sm whitespace-nowrap align-top md:align-middle">
+                    {t.type === 'OUT' ? (
                       <span className="text-red-500 font-bold bg-red-50 px-1.5 md:px-2 py-1 rounded-lg">
-                        - {formatIDR(t.amount)}
+                        {formatIDR(t.amount)}
                       </span>
+                    ) : (
+                      <span className="text-slate-300">-</span>
                     )}
                   </td>
                 </tr>
               ))}
               {currentTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-8 text-center text-[10px] md:text-sm text-slate-400">
+                  <td colSpan={4} className="py-8 text-center text-[10px] md:text-sm text-slate-400">
                     Tidak ada transaksi yang sesuai
                   </td>
                 </tr>
